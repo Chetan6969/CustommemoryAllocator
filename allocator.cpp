@@ -65,7 +65,7 @@ void* CustomAllocator::xmalloc(size_t size) {
     }
 
     if (!chosen) {
-        std::cout << "❌ Allocation failed: Not enough memory.\n";
+        std::cout << "Allocation failed: Not enough memory.\n";
         return nullptr;
     }
 
@@ -94,7 +94,7 @@ void* CustomAllocator::xmalloc(size_t size) {
     size_t start_sector = getBlockIndex(chosen);
     size_t end_sector = start_sector + chosen->block_count - 1;
 
-    std::cout << "\n✅ Allocation successful:\n";
+    std::cout << "\n Allocation successful:\n";
     std::cout << "   ID: " << chosen->alloc_id
               << " | Blocks: " << chosen->block_count
               << " | Size: " << (chosen->block_count * BLOCK_SIZE) << " bytes\n";
@@ -112,7 +112,7 @@ void CustomAllocator::xfree(void* ptr) {
         reinterpret_cast<char*>(ptr) - sizeof(BlockHeader));
 
     if (block->is_free) {
-        std::cout << "[xfree] ⚠️ Double free detected for block ID " << block->alloc_id << "\n";
+        std::cout << "[xfree]  Double free detected for block ID " << block->alloc_id << "\n";
         return;
     }
 
@@ -133,7 +133,7 @@ void CustomAllocator::memoryLeakCheck() {
     while (current) {
         if (!current->is_free) {
             leak_found = true;
-            std::cout << "💧 Leak: ID " << current->alloc_id
+            std::cout << "  Leak: ID " << current->alloc_id
                       << " | Size: " << (current->block_count * BLOCK_SIZE)
                       << " bytes | Blocks: " << current->block_count
                       << " | Start: Block " << getBlockIndex(current) << "\n";
@@ -141,7 +141,7 @@ void CustomAllocator::memoryLeakCheck() {
         current = current->next;
     }
     if (!leak_found) {
-        std::cout << "✅ No memory leaks detected.\n";
+        std::cout << " No memory leaks detected.\n";
     }
 }
 
@@ -168,28 +168,46 @@ void CustomAllocator::setStrategy(AllocationStrategy new_strategy) {
     strategy = new_strategy;
     std::string name = (strategy == FIRST_FIT) ? "First Fit" :
                        (strategy == BEST_FIT) ? "Best Fit" : "Buddy System";
-    std::cout << "\n🔄 Strategy changed to: " << name << "\n";
+    std::cout << "\n  Strategy changed to: " << name << "\n";
 }
 
 void CustomAllocator::defragment() {
     BlockHeader* current = reinterpret_cast<BlockHeader*>(memory_pool);
     bool defragged = false;
-    while (current && current->next) {
-        if (current->is_free && current->next->is_free) {
-            std::cout << "🧱 Merging free blocks at sector " << getBlockIndex(current)
+    int freeBlockCount = 0;
+
+    while (current) {
+        if (current->is_free) {
+            freeBlockCount++;
+        }
+
+        // Check if we can merge with next
+        if (current->is_free && current->next && current->next->is_free) {
+            std::cout << "  Merging free blocks at sector " << getBlockIndex(current)
                       << " and " << getBlockIndex(current->next) << "\n";
+
             current->block_count += current->next->block_count;
             current->next = current->next->next;
             defragged = true;
-        } else {
-            current = current->next;
+
+            // Don't move current forward since it may merge again
+            continue;
         }
+
+        current = current->next;
     }
-    std::cout << (defragged ? "🧹 Memory defragmentation complete.\n" : "ℹ️ No fragmentation found.\n");
+
+    if (defragged) {
+        std::cout << " Memory defragmentation complete.\n";
+    } else if (freeBlockCount > 1) {
+        std::cout << " External fragmentation detected.\n";
+    } else {
+        std::cout << "  No fragmentation found.\n";
+    }
 }
 
 void CustomAllocator::showAllocatorStats() const {
-    std::cout << "📊 Allocator Stats:\n";
+    std::cout << "   Allocator Stats:\n";
     std::cout << "   Total allocated bytes: " << total_allocated_bytes << "\n";
     std::cout << "   Peak usage bytes: " << peak_usage_bytes << "\n";
 }
@@ -199,14 +217,14 @@ void CustomAllocator::findBlockByPointer(void* ptr) const {
     while (current) {
         void* user_ptr = reinterpret_cast<char*>(current) + sizeof(BlockHeader);
         if (user_ptr == ptr) {
-            std::cout << "🔍 Block found: Size: " << current->block_count * BLOCK_SIZE
+            std::cout << "  Block found: Size: " << current->block_count * BLOCK_SIZE
                       << " bytes | Free: " << (current->is_free ? "Yes" : "No")
                       << " | ID: " << current->alloc_id << "\n";
             return;
         }
         current = current->next;
     }
-    std::cout << "❌ Pointer not found in allocator.\n";
+    std::cout << " Pointer not found in allocator.\n";
 }
 
 size_t CustomAllocator::largestFreeBlockSize() const {
@@ -220,4 +238,3 @@ size_t CustomAllocator::largestFreeBlockSize() const {
     }
     return max_size;
 }
-
