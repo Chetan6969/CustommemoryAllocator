@@ -1,8 +1,20 @@
-all: allocator
+# ======= Makefile =======
+CXX = g++
+CXXFLAGS = -Wall -Wextra -std=c++17
+TARGET = allocator
+OBJS = main.o allocator.o
 
-allocator: main.cpp allocator.cpp
-	g++ -std=c++11 main.cpp allocator.cpp -o allocator
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+
+main.o: main.cpp allocator.h
+	$(CXX) $(CXXFLAGS) -c main.cpp
+
+allocator.o: allocator.cpp allocator.h
+	$(CXX) $(CXXFLAGS) -c allocator.cpp
 
 clean:
-	rm -f allocator
+	rm -f $(OBJS) $(TARGET)
 

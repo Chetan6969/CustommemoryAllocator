@@ -1,3 +1,4 @@
+// ======= main.cpp =======
 #include "allocator.h"
 #include <iostream>
 #include <string>
@@ -36,12 +37,12 @@ int main() {
         switch (choice) {
         case 1: {
             size_t size;
-            std::cout << "Enter size to allocate: ";
+            std::cout << "Enter size to allocate (in bytes): ";
             std::cin >> size;
             void* ptr = allocator.xmalloc(size);
             if (ptr) {
                 allocated_ptrs[ptr_count++] = ptr;
-                std::cout << "✅ Allocation successful! Pointer index: " << (ptr_count - 1) << "\n";
+                std::cout << "Pointer Index: " << (ptr_count - 1) << "\n";
             }
             break;
         }
@@ -63,9 +64,12 @@ int main() {
             break;
         case 4: {
             int strat;
-            std::cout << "Enter strategy (1 = First Fit, 2 = Best Fit): ";
+            std::cout << "Select strategy: 1 = First Fit, 2 = Best Fit, 3 = Buddy System: ";
             std::cin >> strat;
-            allocator.setStrategy(strat == 2 ? BEST_FIT : FIRST_FIT);
+            if (strat >= 1 && strat <= 3)
+                allocator.setStrategy(static_cast<AllocationStrategy>(strat - 1));
+            else
+                std::cout << "❌ Invalid strategy selected.\n";
             break;
         }
         case 5:

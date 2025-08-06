@@ -1,3 +1,4 @@
+// ======= allocator.h =======
 #ifndef CUSTOM_ALLOCATOR_H
 #define CUSTOM_ALLOCATOR_H
 
@@ -5,13 +6,14 @@
 #include <ctime>
 #include <cstdint>
 
-const size_t BLOCK_SIZE = 32;       // bytes per block
-const size_t POOL_SIZE = 1024 * 1024; // 1 MB memory pool
+const size_t BLOCK_SIZE = 1024;                 // 1KB
+const size_t POOL_SIZE = 2 * 1024 * 1024;       // 2MB
 const size_t TOTAL_BLOCKS = POOL_SIZE / BLOCK_SIZE;
 
 enum AllocationStrategy {
     FIRST_FIT,
-    BEST_FIT
+    BEST_FIT,
+    BUDDY_SYSTEM
 };
 
 struct BlockHeader {
@@ -19,9 +21,8 @@ struct BlockHeader {
     size_t block_count;
     BlockHeader* next;
 
-    // Extra metadata
-    unsigned long alloc_id;  // unique allocation ID
-    std::time_t timestamp;   // time of allocation
+    unsigned long alloc_id;
+    std::time_t timestamp;
 };
 
 class CustomAllocator {
@@ -30,10 +31,11 @@ private:
     BlockHeader* free_list_head;
     AllocationStrategy strategy;
 
-    // Allocation tracking
     unsigned long allocation_counter;
     size_t total_allocated_bytes;
     size_t peak_usage_bytes;
+
+    size_t getBlockIndex(BlockHeader* block) const;
 
 public:
     CustomAllocator();
@@ -43,9 +45,8 @@ public:
     void xfree(void* ptr);
 
     void memoryLeakCheck();
-    void printMemoryState() const; // const-correct
+    void printMemoryState() const;
 
-    // New public methods
     void setStrategy(AllocationStrategy new_strategy);
     void defragment();
     void showAllocatorStats() const;
@@ -53,5 +54,5 @@ public:
     size_t largestFreeBlockSize() const;
 };
 
-#endif
+#endif // CUSTOM_ALLOCATOR_H
 

@@ -1,7 +1,9 @@
+// ======= allocator.cpp =======
 #include "allocator.h"
 #include <iostream>
 #include <cstring>
 #include <algorithm>
+#include <iomanip>
 
 CustomAllocator::CustomAllocator() {
     memory_pool = new char[POOL_SIZE];
@@ -23,13 +25,18 @@ CustomAllocator::~CustomAllocator() {
     delete[] memory_pool;
 }
 
+size_t CustomAllocator::getBlockIndex(BlockHeader* block) const {
+    return (reinterpret_cast<char*>(block) - memory_pool) / BLOCK_SIZE;
+}
+
 void* CustomAllocator::xmalloc(size_t size) {
     if (size == 0) return nullptr;
 
-    size_t blocks_needed = (size + sizeof(BlockHeader) + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    size_t total_size = size + sizeof(BlockHeader);
+    size_t blocks_needed = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
     BlockHeader* prev = nullptr;
     BlockHeader* current = free_list_head;
-
     BlockHeader* chosen = nullptr;
     BlockHeader* chosen_prev = nullptr;
 
@@ -84,6 +91,17 @@ void* CustomAllocator::xmalloc(size_t size) {
         peak_usage_bytes = total_allocated_bytes;
     }
 
+    size_t start_sector = getBlockIndex(chosen);
+    size_t end_sector = start_sector + chosen->block_count - 1;
+
+    std::cout << "\n✅ Allocation successful:\n";
+    std::cout << "   ID: " << chosen->alloc_id
+              << " | Blocks: " << chosen->block_count
+              << " | Size: " << (chosen->block_count * BLOCK_SIZE) << " bytes\n";
+    std::cout << "   Start Block: " << start_sector
+              << " | End Block: " << end_sector
+              << " | Timestamp: " << std::ctime(&chosen->timestamp);
+
     return reinterpret_cast<char*>(chosen) + sizeof(BlockHeader);
 }
 
@@ -103,7 +121,6 @@ void CustomAllocator::xfree(void* ptr) {
     block->alloc_id = 0;
     block->timestamp = 0;
 
-    // Coalesce with next block if free
     if (block->next && block->next->is_free) {
         block->block_count += block->next->block_count;
         block->next = block->next->next;
@@ -116,9 +133,10 @@ void CustomAllocator::memoryLeakCheck() {
     while (current) {
         if (!current->is_free) {
             leak_found = true;
-            std::cout << "💧 Memory leak: " << current->block_count * BLOCK_SIZE
-                      << " bytes | ID: " << current->alloc_id
-                      << " | Time: " << (current->timestamp ? std::ctime(&current->timestamp) : "N/A");
+            std::cout << "💧 Leak: ID " << current->alloc_id
+                      << " | Size: " << (current->block_count * BLOCK_SIZE)
+                      << " bytes | Blocks: " << current->block_count
+                      << " | Start: Block " << getBlockIndex(current) << "\n";
         }
         current = current->next;
     }
@@ -131,10 +149,16 @@ void CustomAllocator::printMemoryState() const {
     BlockHeader* current = reinterpret_cast<BlockHeader*>(memory_pool);
     size_t index = 0;
     while (current) {
-        std::cout << "Block " << index++
-                  << " | Size: " << current->block_count * BLOCK_SIZE
-                  << " | Free: " << (current->is_free ? "Yes" : "No")
+        std::string status = current->is_free ? "Free" : "Allocated";
+        size_t start_sector = getBlockIndex(current);
+        size_t end_sector = start_sector + current->block_count - 1;
+
+        std::cout << "[Block " << index++ << "] Status: " << status
                   << " | ID: " << current->alloc_id
+                  << " | Size: " << (current->block_count * BLOCK_SIZE) << " bytes"
+                  << " | Blocks: " << current->block_count
+                  << "\n   Start Sector: " << start_sector
+                  << " | End Sector: " << end_sector
                   << " | Time: " << (current->timestamp ? std::ctime(&current->timestamp) : "N/A");
         current = current->next;
     }
@@ -142,21 +166,26 @@ void CustomAllocator::printMemoryState() const {
 
 void CustomAllocator::setStrategy(AllocationStrategy new_strategy) {
     strategy = new_strategy;
-    std::cout << "🔄 Allocation strategy changed to "
-              << (strategy == FIRST_FIT ? "First Fit" : "Best Fit") << "\n";
+    std::string name = (strategy == FIRST_FIT) ? "First Fit" :
+                       (strategy == BEST_FIT) ? "Best Fit" : "Buddy System";
+    std::cout << "\n🔄 Strategy changed to: " << name << "\n";
 }
 
 void CustomAllocator::defragment() {
     BlockHeader* current = reinterpret_cast<BlockHeader*>(memory_pool);
+    bool defragged = false;
     while (current && current->next) {
         if (current->is_free && current->next->is_free) {
+            std::cout << "🧱 Merging free blocks at sector " << getBlockIndex(current)
+                      << " and " << getBlockIndex(current->next) << "\n";
             current->block_count += current->next->block_count;
             current->next = current->next->next;
+            defragged = true;
         } else {
             current = current->next;
         }
     }
-    std::cout << "🧹 Memory defragmentation complete.\n";
+    std::cout << (defragged ? "🧹 Memory defragmentation complete.\n" : "ℹ️ No fragmentation found.\n");
 }
 
 void CustomAllocator::showAllocatorStats() const {
