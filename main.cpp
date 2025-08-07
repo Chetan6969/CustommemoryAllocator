@@ -20,7 +20,7 @@ void showMenu() {
     std::cout << " 9. Memory leak check\n";
     std::cout << " 0. Exit\n";
     std::cout << "=============================================\n";
-    std::cout << "➡️  Enter your choice: ";
+    std::cout << "  Enter your choice: ";
 }
 
 int main() {
