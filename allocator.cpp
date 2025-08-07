@@ -166,10 +166,33 @@ void CustomAllocator::printMemoryState() const {
 
 void CustomAllocator::setStrategy(AllocationStrategy new_strategy) {
     strategy = new_strategy;
+
     std::string name = (strategy == FIRST_FIT) ? "First Fit" :
                        (strategy == BEST_FIT) ? "Best Fit" : "Buddy System";
-    std::cout << "\n  Strategy changed to: " << name << "\n";
+
+    std::cout << "\n  Allocation strategy changed to: " << name << "\n";
 }
+
+// yaha par block ki spliting ho rhi hai
+
+void* CustomAllocator::splitBlock(BlockHeader* block, size_t blocks) {
+    if (block->block_count > blocks) {
+        BlockHeader* new_block = reinterpret_cast<BlockHeader*>(
+            reinterpret_cast<char*>(block) + blocks * BLOCK_SIZE
+        );
+
+        new_block->is_free = true;
+        new_block->block_count = block->block_count - blocks;
+        new_block->next = block->next;
+
+        block->next = new_block;
+        block->block_count = blocks;
+    }
+
+    block->is_free = false;
+    return reinterpret_cast<char*>(block) + sizeof(BlockHeader);
+}
+
 
 void CustomAllocator::defragment() {
     BlockHeader* current = reinterpret_cast<BlockHeader*>(memory_pool);
@@ -238,3 +261,63 @@ size_t CustomAllocator::largestFreeBlockSize() const {
     }
     return max_size;
 }
+
+void* CustomAllocator::allocate(size_t blocks) {
+    BlockHeader* current = free_list_head;
+    BlockHeader* chosen = nullptr;
+
+    if (strategy == FIRST_FIT) {
+        while (current) {
+            if (current->is_free && current->block_count >= blocks) {
+                chosen = current;
+                break;
+            }
+            current = current->next;
+        }
+    } else if (strategy == BEST_FIT) { 
+        size_t best_fit_size = SIZE_MAX;
+        while (current) {
+            if (current->is_free && current->block_count >= blocks && current->block_count < best_fit_size) {
+                chosen = current; 
+                best_fit_size = current->block_count;
+            } 
+            current = current->next; 
+        }
+    } else if (strategy == BUDDY_FIT) {
+        size_t rounded_size = 1;
+        while (rounded_size < blocks) {
+            rounded_size *= 2;  // Round up to the next power of two
+        }
+
+        current = free_list_head;
+        while (current) {
+            if (current->is_free && current->block_count >= rounded_size) {
+                chosen = current;
+                break;
+            }
+            current = current->next;
+        }
+
+        if (!chosen) {
+            std::cout << "Allocation failed: No suitable block found.\n";
+            return nullptr;
+        }
+
+        // If we found a block larger than the required size, split it
+        if (chosen->block_count > rounded_size) {
+            while (chosen->block_count / 2 >= rounded_size) {
+		BlockHeader* buddy = static_cast<BlockHeader*>(splitBlock(chosen, chosen->block_count / 2));
+
+                buddy->is_free = true; // New buddy block is free
+            }
+        }
+    }
+
+    if (!chosen) {
+        std::cout << "Allocation failed: No suitable block found.\n";
+        return nullptr;
+    }
+
+    return splitBlock(chosen, blocks);
+}
+

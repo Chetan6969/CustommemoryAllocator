@@ -13,7 +13,7 @@ const size_t TOTAL_BLOCKS = POOL_SIZE / BLOCK_SIZE;
 enum AllocationStrategy {
     FIRST_FIT,
     BEST_FIT,
-    BUDDY_SYSTEM
+    BUDDY_FIT,
 };
 
 struct BlockHeader {
@@ -30,6 +30,9 @@ private:
     char* memory_pool;
     BlockHeader* free_list_head;
     AllocationStrategy strategy;
+    void* splitBlock(BlockHeader* block, size_t blocks);
+    void* allocate(size_t blocks);
+
 
     unsigned long allocation_counter;
     size_t total_allocated_bytes;
