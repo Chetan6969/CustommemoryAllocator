@@ -32,6 +32,7 @@ private:
     AllocationStrategy strategy;
     void* splitBlock(BlockHeader* block, size_t blocks);
     void* allocate(size_t blocks);
+    void compactMemory();
 
 
     unsigned long allocation_counter;

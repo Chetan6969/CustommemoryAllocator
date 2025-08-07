@@ -35,6 +35,21 @@ void* CustomAllocator::xmalloc(size_t size) {
     size_t total_size = size + sizeof(BlockHeader);
     size_t blocks_needed = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
+    size_t freeBlocks = 0;
+    BlockHeader* temp = free_list_head;
+    while (temp) {
+    if (temp->is_free) {
+        freeBlocks += temp->block_count;
+    }
+    temp = temp->next;
+    }
+    if (blocks_needed > freeBlocks) {
+    std::cout << "Not enough memory available. Requested: " << blocks_needed * BLOCK_SIZE
+              << " bytes, Free: " << freeBlocks * BLOCK_SIZE << " bytes.\n";
+    return nullptr;
+    }
+
+
     BlockHeader* prev = nullptr;
     BlockHeader* current = free_list_head;
     BlockHeader* chosen = nullptr;
@@ -65,8 +80,10 @@ void* CustomAllocator::xmalloc(size_t size) {
     }
 
     if (!chosen) {
-        std::cout << "Allocation failed: Not enough memory.\n";
-        return nullptr;
+        std::cout << "Allocation failed due to fragmentation. Trying Compaction to make memory contiguous.\n";
+        compactMemory();
+
+	return xmalloc(size);
     }
 
     if (chosen->block_count > blocks_needed) {
@@ -110,6 +127,12 @@ void CustomAllocator::xfree(void* ptr) {
 
     BlockHeader* block = reinterpret_cast<BlockHeader*>(
         reinterpret_cast<char*>(ptr) - sizeof(BlockHeader));
+
+    if (reinterpret_cast<char*>(block) < memory_pool || reinterpret_cast<char*>(block) >= memory_pool + POOL_SIZE) {
+    std::cout << "[xfree] Invalid pointer, outside of memory pool.\n";
+    return;
+    }
+
 
     if (block->is_free) {
         std::cout << "[xfree]  Double free detected for block ID " << block->alloc_id << "\n";
@@ -180,6 +203,12 @@ void* CustomAllocator::splitBlock(BlockHeader* block, size_t blocks) {
         BlockHeader* new_block = reinterpret_cast<BlockHeader*>(
             reinterpret_cast<char*>(block) + blocks * BLOCK_SIZE
         );
+   
+	if (reinterpret_cast<char*>(new_block) >= memory_pool + POOL_SIZE) {
+        std::cout << "Error: Block split exceeds memory pool.\n";
+        return nullptr;
+        }
+
 
         new_block->is_free = true;
         new_block->block_count = block->block_count - blocks;
@@ -321,3 +350,58 @@ void* CustomAllocator::allocate(size_t blocks) {
     return splitBlock(chosen, blocks);
 }
 
+void CustomAllocator::compactMemory() {
+    BlockHeader* current = reinterpret_cast<BlockHeader*>(memory_pool);
+    char* target = memory_pool; // Where the next allocated block should go
+    BlockHeader* last_moved = nullptr;
+
+    while (current) {
+        BlockHeader* next = current->next;
+
+        if (!current->is_free) {
+            size_t size_in_bytes = current->block_count * BLOCK_SIZE;
+
+            if (reinterpret_cast<char*>(current) != target) {
+                // Move the allocated block to the target location
+                std::memmove(target, current, size_in_bytes);
+                BlockHeader* moved = reinterpret_cast<BlockHeader*>(target);
+                moved->next = nullptr; // Fix later
+                last_moved = moved;
+                target += size_in_bytes;
+            } else {
+                // Already in place
+                current->next = nullptr;
+                last_moved = current;
+                target += size_in_bytes;
+            }
+        }
+
+        current = next;
+    }
+
+    // Now add one large free block after the last allocated one
+    if (target < memory_pool + POOL_SIZE) {
+        BlockHeader* free_block = reinterpret_cast<BlockHeader*>(target);
+        free_block->is_free = true;
+        free_block->block_count = (memory_pool + POOL_SIZE - target) / BLOCK_SIZE;
+        free_block->next = nullptr;
+        free_block->alloc_id = 0;
+        free_block->timestamp = 0;
+
+        if (last_moved) {
+            last_moved->next = free_block;
+        } else {
+            // All blocks are free, so this becomes the new head
+            free_list_head = free_block;
+        }
+    }
+
+    BlockHeader* new_head = reinterpret_cast<BlockHeader*>(memory_pool);
+    while (new_head && !new_head->is_free) {
+    new_head = new_head->next;
+    }	
+    free_list_head = new_head;
+
+
+    std::cout << "\n Memory compaction completed.\n";
+}

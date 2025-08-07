@@ -48,90 +48,90 @@ int main() {
         switch (choice) {
         case 1: { // Allocate memory
             size_t size;
-            std::cout << "📦 Enter size to allocate (in bytes): ";
+            std::cout << " Enter size to allocate (in bytes): ";
             std::cin >> size;
 
             void* ptr = allocator.xmalloc(size); // Custom allocation
             if (ptr) {
                 allocated_ptrs[ptr_count++] = ptr; // Track allocated pointer
-                std::cout << "✅ Memory allocated. Pointer Index: " << (ptr_count - 1) << "\n";
+                std::cout << " Memory allocated. Pointer Index: " << (ptr_count - 1) << "\n";
             } else {
-                std::cout << "❌ Allocation failed.\n";
+                std::cout << " Allocation failed.\n";
             }
             break;
         }
 
         case 2: { // Free memory
             int idx;
-            std::cout << "🧹 Enter pointer index to free: ";
+            std::cout << " Enter pointer index to free: ";
             std::cin >> idx;
 
             if (idx >= 0 && idx < ptr_count && allocated_ptrs[idx]) {
                 allocator.xfree(allocated_ptrs[idx]);  // Free the memory
                 allocated_ptrs[idx] = nullptr;         // Mark as freed
-                std::cout << "✅ Freed memory at index " << idx << "\n";
+                std::cout << " Freed memory at index " << idx << "\n";
             } else {
-                std::cout << "❌ Invalid index or pointer already freed.\n";
+                std::cout << " Invalid index or pointer already freed.\n";
             }
             break;
         }
 
         case 3: // Show current state of memory blocks
-            std::cout << "\n📊 Showing memory state:\n";
+            std::cout << "\n Showing memory state:\n";
             allocator.printMemoryState();
             break;
 
         case 4: { // Change allocation strategy
             int strat;
-            std::cout << "⚙️  Select strategy:\n";
+            std::cout << "   Select strategy:\n";
             std::cout << "    1 = First Fit\n";
             std::cout << "    2 = Best Fit\n";
             std::cout << "    3 = Buddy System\n";
-            std::cout << "➡️  Enter strategy number: ";
+            std::cout << "  Enter strategy number: ";
             std::cin >> strat;
 
             if (strat >= 1 && strat <= 3)
                 allocator.setStrategy(static_cast<AllocationStrategy>(strat - 1));
             else
-                std::cout << "❌ Invalid strategy selected.\n";
+                std::cout << "  Invalid strategy selected.\n";
             break;
         }
 
         case 5: // Defragment memory to merge adjacent free blocks
-            std::cout << "🧩 Running defragmentation...\n";
+            std::cout << "  Running defragmentation...\n";
             allocator.defragment();
             break;
 
         case 6: // Show memory statistics
-            std::cout << "\n📈 Allocator Statistics:\n";
+            std::cout << "\n Allocator Statistics:\n";
             allocator.showAllocatorStats();
             break;
 
         case 7: { // Find block based on pointer index
             int idx;
-            std::cout << "🔍 Enter pointer index to find: ";
+            std::cout << " Enter pointer index to find: ";
             std::cin >> idx;
 
             if (idx >= 0 && idx < ptr_count && allocated_ptrs[idx]) {
                 allocator.findBlockByPointer(allocated_ptrs[idx]);
             } else {
-                std::cout << "❌ Invalid index.\n";
+                std::cout << " Invalid index.\n";
             }
             break;
         }
 
         case 8: // Show largest available free memory block
-            std::cout << "📏 Largest free block size: "
+            std::cout << "  Largest free block size: "
                       << allocator.largestFreeBlockSize() << " bytes\n";
             break;
 
         case 9: // Manually trigger memory leak check
-            std::cout << "🕵️ Running memory leak check...\n";
+            std::cout << " Running memory leak check...\n";
             allocator.memoryLeakCheck();
             break;
 
         default:
-            std::cout << "❌ Invalid choice. Please select between 0 - 9.\n";
+            std::cout << " Invalid choice. Please select between 0 - 9.\n";
             break;
         }
     }
